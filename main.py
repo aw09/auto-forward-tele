@@ -3,6 +3,22 @@ from telegram_service import TelegramService
 from datetime import datetime
 import atexit
 import time
+import base64
+from config import ENV
+
+
+if ENV == 'streamlit':
+    # Reconstruct session from chunks
+    chunks = []
+    total_chunks = int(st.secrets.SESSION_CHUNKS)
+    for i in range(total_chunks):
+        chunks.append(st.secrets[f'SESSION_CHUNK_{i}'])
+    
+    session_data = ''.join(chunks)
+    session_bytes = base64.b64decode(session_data)
+    
+    with open('anon.session', 'wb') as f:
+        f.write(session_bytes)
 
 # Initialize session state
 if 'logs' not in st.session_state:

@@ -1,11 +1,20 @@
 import asyncio
 import nest_asyncio
 from telethon import events, TelegramClient
-from config import SOURCE_DIALOG_ID, TARGET_DIALOG_ID, TARGET_TOPIC_ID, API_ID, API_HASH
+from config import ENV, SOURCE_DIALOG_ID, TARGET_DIALOG_ID, TARGET_TOPIC_ID, API_ID, API_HASH
 import os
 import json
 from datetime import datetime
 import filelock
+import streamlit as st
+
+
+if ENV == 'streamlit':
+    API_ID = st.secrets.API_ID
+    API_HASH = st.secrets.API_HASH
+    SOURCE_DIALOG_ID = int(st.secrets.SOURCE_DIALOG_ID)
+    TARGET_DIALOG_ID = int(st.secrets.TARGET_DIALOG_ID)
+    TARGET_TOPIC_ID = int(st.secrets.TARGET_TOPIC_ID)
 
 class TelegramService:
     _lock_file = "telegram.lock"
