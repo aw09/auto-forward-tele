@@ -3,3 +3,5 @@ pyasn1==0.6.1
 python-dotenv==1.0.1
 rsa==4.9
 Telethon==1.38.1
+streamlit>=1.40.1
+nest-asyncio>=1.6.0
