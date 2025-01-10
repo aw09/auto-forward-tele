@@ -33,7 +33,19 @@ pip install -r requirements.txt
     TARGET_DIALOG_ID=your_target_channel_id
     TARGET_TOPIC_ID=1
     ```
+
 1. Run the script
     ```bash
     python main.py
     ```
+
+
+## Deploy to Streamlit
+1. Run main.py in local to get session
+1. Run this script to get session
+    ```bash
+    python prepare_session.py
+    ```
+1. Fill .streamlit/secrets.toml
+1. Use that for secret in streamlit
+1. Deploy in streamlit
