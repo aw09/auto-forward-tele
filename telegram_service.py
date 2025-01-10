@@ -7,6 +7,8 @@ import json
 from datetime import datetime
 import filelock
 import streamlit as st
+import logging
+from logging.handlers import RotatingFileHandler
 
 
 if ENV == 'streamlit':
@@ -17,53 +19,69 @@ if ENV == 'streamlit':
     TARGET_TOPIC_ID = int(st.secrets.TARGET_TOPIC_ID)
 
 class TelegramService:
-    _lock_file = "telegram.lock"
     _instance = None
     _loop = None
+    _logger = None
     
     @classmethod
     def get_loop(cls):
         if not cls._loop:
-            nest_asyncio.apply()
             cls._loop = asyncio.new_event_loop()
             asyncio.set_event_loop(cls._loop)
+            nest_asyncio.apply()
         return cls._loop
 
     @classmethod
     async def get_instance(cls):
         if not cls._instance:
-            lock = filelock.FileLock(cls._lock_file)
-            try:
-                with lock.acquire(timeout=1):
-                    cls._instance = TelegramClient(
-                        'anon',
-                        API_ID,
-                        API_HASH,
-                        system_version="4.16.30-vxCUSTOM",
-                        sequential_updates=True,
-                        loop=cls.get_loop()
-                    )
-                    await cls._instance.connect()
-            except filelock.Timeout:
-                raise Exception("Service already running")
+            cls._instance = TelegramClient(
+                'anon',
+                API_ID,
+                API_HASH,
+                system_version="4.16.30-vxCUSTOM"
+            )
+            await cls._instance.connect()
         return cls._instance
 
     @classmethod
-    async def setup_handlers(cls, log_callback):
+    def setup_logging(cls):
+        if not cls._logger:
+            cls._logger = logging.getLogger('telegram_service')
+            cls._logger.setLevel(logging.INFO)
+            handler = RotatingFileHandler('telegram.log', maxBytes=1024*1024, backupCount=5)
+            formatter = logging.Formatter('%(asctime)s - %(message)s')
+            handler.setFormatter(formatter)
+            cls._logger.addHandler(handler)
+        return cls._logger
+    
+    @classmethod
+    async def start_forwarding(cls, log_callback=None):
+        cls.setup_logging()
         client = await cls.get_instance()
         
-        @client.on(events.NewMessage(chats=SOURCE_DIALOG_ID))
+        @client.on(events.NewMessage(chats=[SOURCE_DIALOG_ID]))
         async def forward_handler(event):
             try:
-                log_callback(f"New message detected from {SOURCE_DIALOG_ID}")
+                # Core forwarding logic
+                cls._logger.info(f"Message received from {event.chat_id}")
                 await client.send_message(
-                    entity=TARGET_DIALOG_ID,
-                    message=event.message,
+                    TARGET_DIALOG_ID,
+                    event.message,
                     reply_to=TARGET_TOPIC_ID
                 )
-                log_callback("Message forwarded successfully")
+                cls._logger.info("Message forwarded successfully")
+                
+                # Optional UI logging
+                if log_callback:
+                    try:
+                        log_callback(f"Message forwarded from {event.chat_id}")
+                    except streamlit.runtime.scriptrunner_utils.StopException:
+                        cls._logger.info("UI disconnected, continuing in background")
+                    except Exception as e:
+                        cls._logger.error(f"UI logging failed: {e}")
+                        
             except Exception as e:
-                log_callback(f"Error forwarding message: {str(e)}")
+                cls._logger.error(f"Forward failed: {e}")
 
     @classmethod
     async def cleanup(cls):

@@ -8,7 +8,12 @@ ACTIVATE_CHECK_ROOM = True
 
 async def get_list_room():
     async for dialog in client.iter_dialogs():
-        if dialog.name in CHECK_ROOM_NAME or not ACTIVATE_CHECK_ROOM:
+        if CHECK_ROOM_NAME:
+            if dialog.name in CHECK_ROOM_NAME or not ACTIVATE_CHECK_ROOM:
+                print(f"Room '{dialog.name}' has ID : {dialog.id}")
+                if dialog.is_group:
+                    await get_topics(dialog.id, dialog.name)
+        else:
             print(f"Room '{dialog.name}' has ID : {dialog.id}")
             if dialog.is_group:
                 await get_topics(dialog.id, dialog.name)

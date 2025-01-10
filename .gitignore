@@ -4,3 +4,4 @@ __pycache__
 *.session*
 session_chunks/*
 .streamlit/secrets.toml
+*.log
