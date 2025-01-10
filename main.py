@@ -1,12 +1,20 @@
+import streamlit as st
 from telethon import events
+import asyncio
+import nest_asyncio
 from client import client
 from config import SOURCE_DIALOG_ID, TARGET_DIALOG_ID, TARGET_TOPIC_ID
 
-@client.on(events.NewMessage(chats=SOURCE_DIALOG_ID))
-async def handler(event):
+# Enable nested event loops
+nest_asyncio.apply()
+
+# Initialize event loop
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+
+async def forward_handler(event):
     try:
         print(f"New message detected from {SOURCE_DIALOG_ID}")
-        # Forward complete message including media
         await client.send_message(
             entity=TARGET_DIALOG_ID,
             message=event.message,
@@ -16,14 +24,25 @@ async def handler(event):
     except Exception as e:
         print(f"Error forwarding message: {e}")
 
-async def main():
+async def init_client():
+    await client.start()
+    client.add_event_handler(forward_handler, events.NewMessage(chats=SOURCE_DIALOG_ID))
     me = await client.get_me()
-    print(me.stringify())
+    return me
 
-    # Start listening for new messages
-    print(f"Listening for new messages in dialog ID {SOURCE_DIALOG_ID}...")
+def main():
+    st.title("Telegram Message Forwarder")
+    
+    if st.button("Start Forwarding"):
+        me = loop.run_until_complete(init_client())
+        st.write(f"Logged in as: {me.first_name}")
+        st.write(f"Listening for messages from {SOURCE_DIALOG_ID}")
+        
+        # Keep client running
+        try:
+            loop.run_until_complete(client.run_until_disconnected())
+        except Exception as e:
+            st.error(f"Error: {e}")
 
-
-with client:
-    client.loop.run_until_complete(main())
-    client.run_until_disconnected()
+if __name__ == "__main__":
+    main()
