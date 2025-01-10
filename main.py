@@ -1,63 +1,44 @@
 import streamlit as st
-from telethon import events
-import asyncio
-import nest_asyncio
-from client import client
-from config import SOURCE_DIALOG_ID, TARGET_DIALOG_ID, TARGET_TOPIC_ID
+from telegram_service import TelegramService
 from datetime import datetime
+import atexit
 
-# Enable nested event loops
-nest_asyncio.apply()
+# Initialize session state
+if 'logs' not in st.session_state:
+    st.session_state.logs = []
+    st.session_state.initialized = False
+    st.session_state.client = None
 
-# Initialize event loop
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
+def cleanup():
+    if st.session_state.client:
+        TelegramService.get_loop().run_until_complete(TelegramService.cleanup())
+
+atexit.register(cleanup)
 
 def add_log(message):
-    if 'logs' not in st.session_state:
-        st.session_state.logs = []
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     st.session_state.logs.append(f"[{timestamp}] {message}")
+    if 'log_placeholder' in st.session_state:
+        st.session_state.log_placeholder.code('\n'.join(st.session_state.logs))
 
-async def forward_handler(event):
+st.title("Telegram Message Forwarder")
+
+# Create log placeholder
+if 'log_placeholder' not in st.session_state:
+    st.session_state.log_placeholder = st.empty()
+
+# Initialize service only once
+if not st.session_state.initialized:
     try:
-        add_log(f"New message detected from {SOURCE_DIALOG_ID}")
-        await client.send_message(
-            entity=TARGET_DIALOG_ID,
-            message=event.message,
-            reply_to=TARGET_TOPIC_ID
-        )
-        add_log("Message forwarded successfully")
+        loop = TelegramService.get_loop()
+        st.session_state.client = loop.run_until_complete(TelegramService.get_instance())
+        loop.run_until_complete(TelegramService.setup_handlers(add_log))
+        me = loop.run_until_complete(st.session_state.client.get_me())
+        add_log(f"Service running as: {me.first_name}")
+        st.session_state.initialized = True
     except Exception as e:
-        add_log(f"Error forwarding message: {e}")
+        add_log(f"Service error: {str(e)}")
 
-async def init_client():
-    await client.start()
-    client.add_event_handler(forward_handler, events.NewMessage(chats=SOURCE_DIALOG_ID))
-    me = await client.get_me()
-    return me
-
-def main():
-    st.title("Telegram Message Forwarder")
-    
-    # Create log container
-    log_container = st.empty()
-    
-    if st.button("Start Forwarding"):
-        me = loop.run_until_complete(init_client())
-        add_log(f"Logged in as: {me.first_name}")
-        add_log(f"Listening for messages from {SOURCE_DIALOG_ID}")
-        
-        # Display logs
-        if 'logs' in st.session_state:
-            log_container.code('\n'.join(st.session_state.logs))
-        
-        # Keep client running
-        try:
-            loop.run_until_complete(client.run_until_disconnected())
-        except Exception as e:
-            add_log(f"Error: {e}")
-            log_container.code('\n'.join(st.session_state.logs))
-
-if __name__ == "__main__":
-    main()
+# Display logs
+if st.session_state.logs:
+    st.session_state.log_placeholder.code('\n'.join(st.session_state.logs))

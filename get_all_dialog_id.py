@@ -2,7 +2,8 @@ from client import client
 from telethon.tl.functions.channels import GetForumTopicsRequest
 
 CHECK_ROOM_NAME = [
-    # You need to specify the room name here
+    "GRUP MIRROR MINESTACK",
+    "VIP - 100X Crypto Signals & Analysis by Bryan x MineStack",
 ]
 ACTIVATE_CHECK_ROOM = True
 
