@@ -2,12 +2,14 @@ import streamlit as st
 from telegram_service import TelegramService
 from datetime import datetime
 import atexit
+import time
 
 # Initialize session state
 if 'logs' not in st.session_state:
     st.session_state.logs = []
     st.session_state.initialized = False
     st.session_state.client = None
+    st.session_state.retry_count = 0
 
 def cleanup():
     if st.session_state.client:
@@ -23,22 +25,36 @@ def add_log(message):
 
 st.title("Telegram Message Forwarder")
 
-# Create log placeholder
 if 'log_placeholder' not in st.session_state:
     st.session_state.log_placeholder = st.empty()
 
-# Initialize service only once
-if not st.session_state.initialized:
+# Initialize service with retry
+MAX_RETRIES = 3
+while not st.session_state.initialized and st.session_state.retry_count < MAX_RETRIES:
     try:
         loop = TelegramService.get_loop()
         st.session_state.client = loop.run_until_complete(TelegramService.get_instance())
+        
+        # Validate connection
+        if not st.session_state.client.is_connected():
+            raise Exception("Client not connected")
+            
         loop.run_until_complete(TelegramService.setup_handlers(add_log))
         me = loop.run_until_complete(st.session_state.client.get_me())
+        
+        if not me:
+            raise Exception("Authentication failed")
+            
         add_log(f"Service running as: {me.first_name}")
         st.session_state.initialized = True
+        
     except Exception as e:
-        add_log(f"Service error: {str(e)}")
+        st.session_state.retry_count += 1
+        add_log(f"Service error (attempt {st.session_state.retry_count}): {str(e)}")
+        if st.session_state.retry_count < MAX_RETRIES:
+            time.sleep(2)  # Wait before retry
+        else:
+            add_log("Maximum retry attempts reached. Please check your credentials.")
 
-# Display logs
 if st.session_state.logs:
     st.session_state.log_placeholder.code('\n'.join(st.session_state.logs))
