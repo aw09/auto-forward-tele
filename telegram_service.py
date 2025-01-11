@@ -21,23 +21,26 @@ if ENV == 'streamlit':
 class TelegramService:
     _instance = None
     _logger = None
-    _loop = asyncio.new_event_loop()  # Single event loop instance
-    _processed_msgs = set()
-    _heartbeat_task = None
-
+    _loop = None  # Add class variable
+    _processed_msgs = set()  # Track processed message IDs
+    
     @classmethod
     def get_loop(cls):
+        if not hasattr(cls, '_loop') or not cls._loop:
+            cls._loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(cls._loop)
+            nest_asyncio.apply()
         return cls._loop
-
+    
     @classmethod
     async def get_instance(cls):
+        cls._logger = logging.getLogger("TelegramService")
         if not cls._instance:
             cls._instance = TelegramClient(
                 'anon',
                 API_ID,
                 API_HASH,
-                system_version="4.16.30-vxCUSTOM",
-                loop=cls._loop  # Pass loop to client
+                system_version="4.16.30-vxCUSTOM"
             )
             await cls._instance.connect()
         return cls._instance
@@ -57,54 +60,53 @@ class TelegramService:
             if cls._logger:
                 cls._logger.error(f"Error sending log: {e}")
 
+    @classmethod
+    async def send_log_async(cls, message: str):
+        """Async version of send_log for use in event handlers"""
+        if not cls._instance:
+            return
+        try:
+            await cls._instance.send_message(LOG_DIALOG_ID, message)
+        except Exception as e:
+            if cls._logger:
+                cls._logger.error(f"Error sending log: {e}")
 
     @classmethod
     async def start_forwarding(cls):
         client = await cls.get_instance()
         
-        # Start heartbeat only once
-        if not cls._heartbeat_task or cls._heartbeat_task.done():
-            cls._heartbeat_task = cls._loop.create_task(cls._heartbeat())
-        
         @client.on(events.NewMessage(chats=[SOURCE_DIALOG_ID]))
         async def forward_handler(event):
             try:
-                cls.send_log(f"🔔 New message {event.message.id} from {event.message.sender_id}")
+                await cls.send_log_async(f"🔔 New message {event.message.id} from {event.message.sender_id}")
+                print(f"🔔 New message {event.message.id} from {event.message.sender_id}")
                 
-                # Check if message already processed
                 if event.message.id in cls._processed_msgs:
                     return
                 
-                # Forward message
                 result = await client.send_message(
                     TARGET_DIALOG_ID,
                     event.message,
                     reply_to=TARGET_TOPIC_ID
                 )
-                
-                # Track processed message
                 cls._processed_msgs.add(event.message.id)
-                
-                # Keep cache size manageable (last 1000 messages)
-                if len(cls._processed_msgs) > 1000:
-                    cls._processed_msgs = set(list(cls._processed_msgs)[-1000:])
-                
-                cls.send_log(f"✅ Message {event.message.id} forwarded")
-                
+                await cls.send_log_async(f"✅ Message forwarded successfully")
+                print(f"✅ Message forwarded successfully")
             except Exception as e:
-                cls.send_log(f"❌ Error forwarding message {event.message.id}: {str(e)}")
+                await cls.send_log_async(f"❌ Error: {str(e)}")
+                print(f"❌ Error: {str(e)}")
+
+        # Start heartbeat task
+        asyncio.create_task(cls._heartbeat_task(client))
 
     @classmethod
-    async def _heartbeat(cls):
-        client = await cls.get_instance()
+    async def _heartbeat_task(cls, client):
         while True:
+            await asyncio.sleep(30)
             try:
-                await client.send_message(LOG_DIALOG_ID, "Heartbeat ✓")
-                await asyncio.sleep(60, loop=cls._loop)  # Pass loop to sleep
+                await client.send_message(LOG_DIALOG_ID, f"Heartbeat {datetime.now()}")
             except Exception as e:
-                if cls._logger:
-                    cls._logger.error(f"Heartbeat error: {e}")
-                await asyncio.sleep(5, loop=cls._loop)
+                cls._logger.error(f"Heartbeat error: {e}")
 
     @classmethod
     async def cleanup(cls):
