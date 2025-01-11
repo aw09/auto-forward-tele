@@ -22,6 +22,7 @@ class TelegramService:
     _instance = None
     _logger = None
     _loop = None  # Add class variable
+    _processed_msgs = set()  # Track processed message IDs
     
     @classmethod
     def get_loop(cls):
@@ -67,25 +68,28 @@ class TelegramService:
         @client.on(events.NewMessage(chats=[SOURCE_DIALOG_ID]))
         async def forward_handler(event):
             try:
-                # Core forwarding logic
+                # Check if message already processed
+                if event.message.id in cls._processed_msgs:
+                    return
+                
+                # Forward message
                 result = await client.send_message(
                     TARGET_DIALOG_ID,
                     event.message,
                     reply_to=TARGET_TOPIC_ID
                 )
                 
-                # Send log to log channel
-                await client.send_message(
-                    LOG_DIALOG_ID,
-                    f"✅ Forwarded message from {event.chat_id} to {TARGET_DIALOG_ID}"
-                )
-                        
+                # Track processed message
+                cls._processed_msgs.add(event.message.id)
+                
+                # Keep cache size manageable (last 1000 messages)
+                if len(cls._processed_msgs) > 1000:
+                    cls._processed_msgs = set(list(cls._processed_msgs)[-1000:])
+                
+                cls.send_log(f"✅ Message {event.message.id} forwarded")
+                
             except Exception as e:
-                cls._logger.error(f"Forward failed: {e}")
-                await client.send_message(
-                    LOG_DIALOG_ID,
-                    f"❌ Error forwarding: {str(e)}"
-                )
+                cls.send_log(f"❌ Error forwarding message {event.message.id}: {str(e)}")
 
         # Start heartbeat task
         asyncio.create_task(cls._heartbeat_task(client))
