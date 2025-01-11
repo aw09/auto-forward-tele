@@ -69,6 +69,8 @@ class TelegramService:
         @client.on(events.NewMessage(chats=[SOURCE_DIALOG_ID]))
         async def forward_handler(event):
             try:
+                cls.send_log(f"🔔 New message {event.message.id} from {event.message.sender_id}")
+                
                 # Check if message already processed
                 if event.message.id in cls._processed_msgs:
                     return
