@@ -4,7 +4,7 @@ from telethon import events, TelegramClient
 from config import ENV, SOURCE_DIALOG_ID, TARGET_DIALOG_ID, TARGET_TOPIC_ID, API_ID, API_HASH, LOG_DIALOG_ID
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import filelock
 import streamlit as st
 import logging
@@ -104,7 +104,7 @@ class TelegramService:
         while True:
             await asyncio.sleep(60*60)
             try:
-                await client.send_message(LOG_DIALOG_ID, f"Heartbeat {datetime.now()}")
+                await client.send_message(LOG_DIALOG_ID, f"Heartbeat {datetime.now()}, next: {datetime.now() + timedelta(hours=1)}")
             except Exception as e:
                 cls._logger.error(f"Heartbeat error: {e}")
 
