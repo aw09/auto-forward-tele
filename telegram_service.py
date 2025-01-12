@@ -102,7 +102,7 @@ class TelegramService:
     @classmethod
     async def _heartbeat_task(cls, client):
         while True:
-            await asyncio.sleep(30)
+            await asyncio.sleep(60*60)
             try:
                 await client.send_message(LOG_DIALOG_ID, f"Heartbeat {datetime.now()}")
             except Exception as e:
