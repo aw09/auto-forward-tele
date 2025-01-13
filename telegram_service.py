@@ -14,6 +14,8 @@ from logging.handlers import RotatingFileHandler
 if ENV == 'streamlit':
     API_ID = st.secrets.API_ID
     API_HASH = st.secrets.API_HASH
+    LOG_DIALOG_ID = int(st.secrets.LOG_DIALOG_ID)
+    LOG_TOPIC_ID = int(st.secrets.LOG_TOPIC_ID)
     SOURCE_DIALOG_ID = int(st.secrets.SOURCE_DIALOG_ID)
     TARGET_DIALOG_ID = int(st.secrets.TARGET_DIALOG_ID)
     TARGET_TOPIC_ID = int(st.secrets.TARGET_TOPIC_ID)
@@ -55,7 +57,7 @@ class TelegramService:
 
         try:
             loop = cls.get_loop()
-            loop.create_task(cls._instance.send_message(LOG_DIALOG_ID, message))
+            loop.create_task(cls._instance.send_message(LOG_DIALOG_ID, message, reply_to=LOG_TOPIC_ID))
         except Exception as e:
             if cls._logger:
                 cls._logger.error(f"Error sending log: {e}")
@@ -66,7 +68,11 @@ class TelegramService:
         if not cls._instance:
             return
         try:
-            await cls._instance.send_message(LOG_DIALOG_ID, message)
+            await cls._instance.send_message(
+                LOG_DIALOG_ID, 
+                message,
+                reply_to=LOG_TOPIC_ID
+            )
         except Exception as e:
             if cls._logger:
                 cls._logger.error(f"Error sending log: {e}")
@@ -104,7 +110,11 @@ class TelegramService:
         while True:
             await asyncio.sleep(60*60)
             try:
-                await client.send_message(LOG_DIALOG_ID, f"Heartbeat {datetime.now()}, next: {datetime.now() + timedelta(hours=1)}")
+                await client.send_message(
+                    LOG_DIALOG_ID, 
+                    f"Heartbeat {datetime.now()}, next: {datetime.now() + timedelta(hours=1)}",
+                    reply_to=LOG_TOPIC_ID
+                    )
             except Exception as e:
                 cls._logger.error(f"Heartbeat error: {e}")
 
