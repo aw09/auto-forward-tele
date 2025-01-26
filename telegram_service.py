@@ -92,8 +92,8 @@ class TelegramService:
             async with aiohttp.ClientSession() as session:
                 async with session.get(PING_URL) as response:
                     if response.status == 200:
-                        await cls.send_log_async(f"✅ Pinged {PING_URL}")
-                        print(f"✅ Pinged {PING_URL}")
+                        await cls.send_log_async(f"✅ Pinged")
+                        print(f"✅ Pinged")
                     else:
                         await cls.send_log_async(f"⚠️ Ping failed: status {response.status}")
                         print(f"⚠️ Ping failed: status {response.status}")
