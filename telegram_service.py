@@ -9,6 +9,7 @@ import filelock
 import streamlit as st
 import logging
 from logging.handlers import RotatingFileHandler
+import aiohttp
 
 
 if ENV == 'streamlit':
@@ -19,6 +20,8 @@ if ENV == 'streamlit':
     SOURCE_DIALOG_ID = int(st.secrets.SOURCE_DIALOG_ID)
     TARGET_DIALOG_ID = int(st.secrets.TARGET_DIALOG_ID)
     TARGET_TOPIC_ID = int(st.secrets.TARGET_TOPIC_ID)
+    PING_URL = st.secrets.PING_URL
+    PING_ENABLED = st.secrets.PING_ENABLED.lower() == 'true'
 
 class TelegramService:
     _instance = None
@@ -78,6 +81,27 @@ class TelegramService:
                 cls._logger.error(f"Error sending log: {e}")
 
     @classmethod
+    async def _ping_url(cls):
+        """Simple GET request after successful forwarding"""
+        if not PING_ENABLED or not PING_URL:
+            await cls.send_log_async("❌ Ping not enabled")
+            print("❌ Ping not enabled")
+            return
+            
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(PING_URL) as response:
+                    if response.status == 200:
+                        await cls.send_log_async(f"✅ Pinged {PING_URL}")
+                        print(f"✅ Pinged {PING_URL}")
+                    else:
+                        await cls.send_log_async(f"⚠️ Ping failed: status {response.status}")
+                        print(f"⚠️ Ping failed: status {response.status}")
+        except Exception as e:
+            await cls.send_log_async(f"❌ Ping error: {str(e)}")
+            print(f"❌ Ping error: {str(e)}")
+
+    @classmethod
     async def start_forwarding(cls):
         client = await cls.get_instance()
         
@@ -96,6 +120,7 @@ class TelegramService:
                     reply_to=TARGET_TOPIC_ID
                 )
                 cls._processed_msgs.add(event.message.id)
+                await cls._ping_url()
                 await cls.send_log_async(f"✅ Message forwarded successfully")
                 print(f"✅ Message forwarded successfully")
             except Exception as e:

@@ -6,3 +6,4 @@ Telethon==1.38.1
 streamlit>=1.40.1
 nest-asyncio>=1.6.0
 filelock>=3.16.1
+aiohttp>=3.8.0

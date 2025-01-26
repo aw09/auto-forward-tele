@@ -11,3 +11,7 @@ LOG_TOPIC_ID = int(os.getenv('LOG_TOPIC_ID'))
 SOURCE_DIALOG_ID = int(os.getenv('SOURCE_DIALOG_ID'))
 TARGET_DIALOG_ID = int(os.getenv('TARGET_DIALOG_ID'))
 TARGET_TOPIC_ID = int(os.getenv('TARGET_TOPIC_ID'))
+
+# Add URL to ping after forwarding
+PING_URL = os.getenv('PING_URL', '')
+PING_ENABLED = os.getenv('PING_ENABLED', 'false').lower() == 'true'

@@ -1,6 +1,6 @@
 import base64
 import os
-from config import API_HASH, API_ID, SOURCE_DIALOG_ID, TARGET_DIALOG_ID, TARGET_TOPIC_ID, LOG_DIALOG_ID, LOG_TOPIC_ID
+from config import API_HASH, API_ID, SOURCE_DIALOG_ID, TARGET_DIALOG_ID, TARGET_TOPIC_ID, LOG_DIALOG_ID, LOG_TOPIC_ID, PING_URL, PING_ENABLED
 
 # Create .streamlit directory if it doesn't exist
 secrets_dir = '.streamlit'
@@ -16,6 +16,8 @@ with open(os.path.join(secrets_dir, 'secrets.toml'), 'w') as f:
     f.write(f'TARGET_TOPIC_ID = "{TARGET_TOPIC_ID}"\n')
     f.write(f'LOG_DIALOG_ID = "{LOG_DIALOG_ID}"\n')
     f.write(f'LOG_TOPIC_ID = "{LOG_TOPIC_ID}"\n')
+    f.write(f'PING_URL = "{PING_URL}"\n')
+    f.write(f'PING_ENABLED = "{PING_ENABLED}"\n')
 
 # Read and encode session file
 with open('anon.session', 'rb') as f:
